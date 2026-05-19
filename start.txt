@@ -1,0 +1,7 @@
+g++ -std=c++17 -O2 -pthread quantum_numbers.cpp special_functions.cpp orbital.cpp renderer.cpp volume_exporter.cpp multirenderer.cpp main.cpp -o orb3d
+
+./orb3d -n 2 -l 1 -m 0 --real --xmin=-8 --xmax=8 --zmin=-8 --zmax=8 --width=800 --height=800 --fixed=0 --axis=y --colormap=jet --log -o orbital.ppm
+./orb3d -n 3 -l 2 -m 1 --real --three-view --width=400 --height=400 -o three.bmp
+./orb3d -n 2 -l 1 -m 0 --real --slice-seq --axis=z --start=-5 --end=5 --steps=20 --xmin=-8 --xmax=8 --width=600 --height=600 --colormap=hot --format=bmp -o slice_
+./orb3d -n 1 -l 0 -m 0 --volume --volume-size=64 --threads=4 -o orbital.vtk
+./orb3d -n 2 -l 1 -m 1 --complex --colormap=hsv --fixed=0 --axis=y -o phase_orbital.bmp

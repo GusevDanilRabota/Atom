@@ -2,8 +2,8 @@
  * @file renderer.h
  * @brief Генерация изображения распределения электронной плотности.
  *
- * Поддерживает серую шкалу и HSV-кодирование фазы,
- * логарифмический масштаб, форматы PPM (P6) и BMP (24 бита).
+ * Поддерживает несколько цветовых карт, логарифмическую шкалу,
+ * рендеринг в файл и в буфер памяти (для композитинга).
  */
 
 #ifndef RENDERER_H
@@ -14,11 +14,13 @@
 #include <string>
 #include <vector>
 
-/// Цветовая схема
-enum class ColorScheme {
-  GRAY,     ///< Оттенки серого по плотности
-  HSV_PHASE ///< HSV: Hue = фаза, Saturation = 1, Value = плотность
-            ///< (логарифмическая опционально)
+/// Цветовые карты
+enum class ColorMap {
+  GRAY,      ///< Оттенки серого по плотности
+  HSV_PHASE, ///< HSV: Hue = фаза, Saturation = 1, Value = плотность
+  JET,       ///< Псевдоцвета JET (синий–зелёный–красный)
+  HOT,       ///< Чёрный–красный–жёлтый–белый
+  COOL       ///< Циан–магента
 };
 
 /// Выходной графический формат
@@ -31,27 +33,25 @@ enum class ImageFormat {
  * @brief Параметры визуализации двумерного среза.
  */
 struct RenderParams {
-  double xmin = -10.0, xmax = 10.0; ///< Диапазон по X (в a0)
-  double ymin = -10.0,
-         ymax = 10.0; ///< По Y (для плоскости y=const может быть фиксировано)
-  double zmin = -10.0, zmax = 10.0; ///< По Z
-  int width = 800;                  ///< Ширина изображения в пикселях
-  int height = 800;                 ///< Высота
-  double fixed_coord =
-      0.0; ///< Фиксированное значение координаты, перпендикулярной срезу
-  ///< Ось среза: 'x' — плоскость YZ (фиксирован x), 'y' — XZ, 'z' — XY
-  char slice_axis =
-      'y'; ///< Ось, ортогональная плоскости среза (y означает срез XZ)
-  ColorScheme colorscheme = ColorScheme::GRAY;
-  bool log_scale = false;    ///< Логарифмическое сжатие яркости
-  double log_factor = 100.0; ///< Коэффициент A в log(1+A*prob)
-  ImageFormat format = ImageFormat::PPM;
+  double xmin = -10.0;
+  double xmax = 10.0;
+  double zmin = -10.0;
+  double zmax = 10.0;
+  int width = 800;
+  int height = 800;
+  double fixed_coord = 0.0;
+  char slice_axis = 'y';
+  ColorMap colormap = ColorMap::GRAY;
+  bool log_scale = false;
+  double log_factor = 100.0;
+  bool use_real = true;
+
   std::string output_filename = "orbital.ppm";
-  bool use_real = true; ///< true — действительная орбиталь, false — комплексная
+  ImageFormat format = ImageFormat::PPM;
 };
 
 /**
- * @brief Рендерер электронного облака в файл.
+ * @brief Рендерер электронного облака в файл или буфер.
  */
 class Renderer {
 public:
@@ -62,27 +62,34 @@ public:
    */
   Renderer(const Orbital &orb, const RenderParams &params);
 
-  /// Выполнить расчёт и сохранить изображение.
+  /// Выполнить расчёт и сохранить изображение в файл (формат задаётся
+  /// params.format).
   bool render();
+
+  /**
+   * @brief Выполнить расчёт и записать RGB-изображение в буфер.
+   * @param[out] buffer Выходной буфер размером 3*width*height (R,G,B
+   * чередуются).
+   * @return true в случае успеха.
+   */
+  bool renderToBuffer(std::vector<unsigned char> &buffer);
 
 private:
   const Orbital &orbital_;
   RenderParams params_;
-  std::vector<double> density_; ///< Плотность вероятности в каждом пикселе
-  std::vector<double> phase_;   ///< Фаза (радианы), используется для HSV
+  std::vector<double> density_;
+  std::vector<double> phase_;
   double max_density_ = 0.0;
 
-  /// Вычислить плотность (и фазу) на сетке
   void computeGrid();
 
-  /// Запись в PPM
   bool writePPM();
-  /// Запись в BMP
   bool writeBMP();
 
-  /// Преобразование HSV в RGB (r,g,b в диапазоне [0,1])
-  static void hsv2rgb(double h, double s, double v, double &r, double &g,
-                      double &b);
+  void applyColorMap(double density, double phase, unsigned char &r,
+                     unsigned char &g, unsigned char &b) const;
+
+  static std::vector<unsigned char> makeLUT(ColorMap cmap);
 };
 
 #endif

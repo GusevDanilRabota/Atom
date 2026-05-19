@@ -1,9 +1,7 @@
 #include "special_functions.h"
 #include <cmath>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+static constexpr double kPi = 3.14159265358979323846;
 
 double laguerre_assoc(int k, double alpha, double x) {
   if (k == 0) {
@@ -27,17 +25,17 @@ double legendre_assoc(int l, int m, double x) {
   if (m < 0 || m > l) {
     return 0.0;
   }
+
+  // Вычисление P_m^m(x) = (-1)^m * (2m-1)!! * (1-x^2)^{m/2}
   double pmm = 1.0;
   if (m > 0) {
+    double somx2 = std::sqrt((1.0 - x) * (1.0 + x)); // sqrt(1-x^2)
     double fact = 1.0;
     for (int i = 1; i <= m; ++i) {
-      pmm *= (1.0 - x * x) * (2.0 * i - 1.0);
-      fact *= (2.0 * i);
+      pmm *= (2.0 * i - 1.0) * somx2;
+      fact *= static_cast<double>(i);
     }
-    pmm = std::sqrt(pmm) / std::sqrt(fact);
-    if (m % 2 == 1) {
-      pmm = -pmm;
-    }
+    pmm *= (m % 2 == 0) ? 1.0 : -1.0;
   }
 
   if (l == m) {
